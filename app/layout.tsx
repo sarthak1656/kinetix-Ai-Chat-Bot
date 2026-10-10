@@ -20,7 +20,11 @@ export default function RootLayout({
 
   const content = (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0 }} className={outfit.className}>
+      <body
+        suppressHydrationWarning
+        style={{ margin: 0, padding: 0 }}
+        className={outfit.className}
+      >
         <Provider>{children}</Provider>
       </body>
     </html>
