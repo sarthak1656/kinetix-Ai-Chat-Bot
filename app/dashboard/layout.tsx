@@ -8,7 +8,7 @@ function DashboardLayout({ children }: any) {
       <AppSidebar />
       <SidebarTrigger />
 
-      <div>{children}</div>
+      <div className="w-full" >{children}</div>
     </SidebarProvider>
   );
 }
