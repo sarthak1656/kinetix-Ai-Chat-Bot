@@ -1,6 +1,8 @@
 "use client";
-import { Button } from "@/components/ui/button";
+
+import React, { useState } from "react";
 import axios from "axios";
+import { Button } from "@/components/ui/button";
 import {
   ArrowUp,
   Plus,
@@ -13,10 +15,8 @@ import {
   Loader2,
   Loader2Icon,
 } from "lucide-react";
-import React, { useState } from "react";
 import AIAgentQuestions from "./AIAgentQuestions";
 import NewAgentCard from "./NewAgentCard";
-import { set } from "date-fns";
 
 const quickSuggestions = [
   {
@@ -149,7 +149,7 @@ export type CreatedAgentType = {
   skills: string[];
   schedule: AgentSchedule;
   outputFormat: string;
-  status: string; // Active, Pause
+  status: string;
   createdAt: string;
 };
 
@@ -163,50 +163,51 @@ function CreateAgent() {
     null,
   );
 
-const onSubmit = async () => {
-  setLoading(true);
-  try {
-    const result = await axios.post("/api/agents/configure", {
-      prompt: prompt,
-    });
-    console.log("Result: ", result.data);
-    setConfigResult(result.data);
-    if (result.data.status === "ready") {
-      setCreatedAgent(result.data.config); // <-- Fix: pass result.data.config here
+  const onSubmit = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    try {
+      const result = await axios.post("/api/agents/configure", {
+        prompt: prompt,
+      });
+      console.log("Result: ", result.data);
+      setConfigResult(result.data);
+      if (result.data.status === "ready") {
+        setCreatedAgent(result.data.config);
+      }
+    } catch (error) {
+      console.error("Error configuring agent:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error configuring agent:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-const handleAnswersSubmit = async (
-  answers: Record<string, string | string[]>,
-) => {
-  console.log("User submitted clarification answers:", answers);
-  setConfigResult(null); 
-  const updatedPrompt = prompt + "\n" + JSON.stringify(answers);
-  setLoading(true);
-  try {
-    const result = await axios.post("/api/agents/configure", {
-      prompt: updatedPrompt,
-    });
-    console.log("Result: ", result.data);
-    setConfigResult(result.data);
-    if (result.data.status === "ready") {
-      setCreatedAgent(result.data.config); // <-- Fix: pass result.data.config here as well
+  const handleAnswersSubmit = async (
+    answers: Record<string, string | string[]>,
+  ) => {
+    console.log("User submitted clarification answers:", answers);
+    setConfigResult(null);
+    const updatedPrompt = prompt + "\n" + JSON.stringify(answers);
+    setLoading(true);
+    try {
+      const result = await axios.post("/api/agents/configure", {
+        prompt: updatedPrompt,
+      });
+      console.log("Result: ", result.data);
+      setConfigResult(result.data);
+      if (result.data.status === "ready") {
+        setCreatedAgent(result.data.config);
+      }
+    } catch (error) {
+      console.error("Error configuring agent:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error configuring agent:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="mt-5">
-      <div className="">
+      <div>
         <h2 className="text-2xl font-semibold tracking-tight">
           Create New Agent
         </h2>
@@ -223,18 +224,16 @@ const handleAnswersSubmit = async (
             placeholder="Describe the agent you want to create..."
           />
           <div className="flex justify-between items-center">
-            <div className="">
-              <Button variant={"ghost"} size={"icon"}>
+            <div>
+              <Button variant="ghost" size="icon">
                 <Plus />
               </Button>
             </div>
             <Button
-              size={"icon"}
-              className={
-                "h-9 w-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white"
-              }
+              size="icon"
+              className="h-9 w-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white"
               onClick={onSubmit}
-              disabled={loading}
+              disabled={loading || !prompt.trim()}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -251,7 +250,7 @@ const handleAnswersSubmit = async (
           <Button
             onClick={() => setPrompt(suggestion.prompt)}
             key={index}
-            variant={"outline"}
+            variant="outline"
             size="sm"
           >
             {suggestion.label}
@@ -262,7 +261,7 @@ const handleAnswersSubmit = async (
       {loading ? (
         <div className="flex gap-2 items-center p-3 border rounded-2xl bg-background mt-7 shadow-lg shadow-purple-100 hover:shadow-purple-200 transition-all duration-300">
           <Loader2Icon className="h-4 w-4 animate-spin" />
-          <h2 className="">Generating response...</h2>
+          <h2>Generating response...</h2>
         </div>
       ) : (
         !configResult && (
@@ -276,6 +275,7 @@ const handleAnswersSubmit = async (
                 return (
                   <div
                     key={index}
+                    onClick={() => setPrompt(template.description)}
                     className={`p-5 rounded-2xl border bg-background transition-all duration-300 cursor-pointer shadow-sm ${template.border} ${template.glow}`}
                   >
                     <div
@@ -311,13 +311,10 @@ const handleAnswersSubmit = async (
             />
           ) : (
             <div className="mt-4 p-5 rounded-2xl border bg-background shadow-lg shadow-purple-100">
-              {/* <h3 className="text-lg font-semibold text-purple-700">
-          Agent Ready: {(configResult as any).name || (configResult as any).config?.name || (Array.isArray(configResult) && configResult[0]?.name)}
-        </h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          {(configResult as any).description || (configResult as any).config?.description || (Array.isArray(configResult) && configResult[0]?.description)}
-        </p> */}
-              <NewAgentCard createdAgent={createdAgent} />
+              <NewAgentCard
+                createdAgent={createdAgent}
+                onAgentUpdated={(updated) => setCreatedAgent(updated)}
+              />
             </div>
           )}
         </div>

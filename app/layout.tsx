@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import Provider from "./provider";
+import { Toaster } from "@/components/ui/toast";
 
 const outfit = Outfit({ subsets: ["latin"] });
 
@@ -16,8 +17,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
-
   const content = (
     <html lang="en">
       <body
@@ -26,6 +25,7 @@ export default function RootLayout({
         className={outfit.className}
       >
         <Provider>{children}</Provider>
+        <Toaster />
       </body>
     </html>
   );
