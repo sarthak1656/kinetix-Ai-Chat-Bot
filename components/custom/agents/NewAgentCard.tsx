@@ -31,6 +31,7 @@ type Props = {
 
 function NewAgentCard({ createdAgent, onAgentUpdated, onAgentDeleted }: Props) {
   const [agent, setAgent] = useState<CreatedAgentType | null>(createdAgent);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!agent) return null;
 
@@ -123,7 +124,12 @@ function NewAgentCard({ createdAgent, onAgentUpdated, onAgentDeleted }: Props) {
 
         {/* Action Controls */}
         <div className="flex gap-1 items-center text-muted-foreground shrink-0 self-end md:self-center">
-          <AgentEditSheet agentConfig={agent} onSave={handleSave}>
+          <AgentEditSheet
+            agentConfig={agent}
+            onSave={handleSave}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -151,14 +157,14 @@ function NewAgentCard({ createdAgent, onAgentUpdated, onAgentDeleted }: Props) {
                 <DropdownMenuItem className="cursor-pointer text-xs">
                   <Pause className="w-3.5 h-3.5 mr-2" /> Pause Agent
                 </DropdownMenuItem>
-                <AgentEditSheet agentConfig={agent} onSave={handleSave}>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()}
-                    className="cursor-pointer text-xs"
-                  >
-                    <Pencil className="w-3.5 h-3.5 mr-2" /> Edit Agent
-                  </DropdownMenuItem>
-                </AgentEditSheet>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setTimeout(() => setEditOpen(true), 50);
+                  }}
+                  className="cursor-pointer text-xs"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-2" /> Edit Agent
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>

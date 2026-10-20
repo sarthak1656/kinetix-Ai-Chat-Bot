@@ -4,7 +4,35 @@ import { AgentConfigSystemPrompt } from "@/data/Prompt";
 import { AgentConfigRespSchema } from "@/data/ResponseSchema";
 import { AgentConfig, db, tools } from "@/db";
 import { currentUser } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+
+// ==========================================
+// GET: List agents for the signed-in user
+// ==========================================
+export async function GET() {
+  try {
+    const user = await currentUser();
+    const email = user?.primaryEmailAddress?.emailAddress;
+
+    if (!user || !email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const agents = await db
+      .select()
+      .from(AgentConfig)
+      .where(eq(AgentConfig.userEmail, email))
+      .orderBy(desc(AgentConfig.createdAt));
+
+    return NextResponse.json(agents);
+  } catch (error: any) {
+    console.error("Error listing agents:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to load agents." },
+      { status: 500 },
+    );
+  }
+}
 
 // ==========================================
 // POST: Generate & Create New Agent
@@ -144,6 +172,11 @@ export async function PUT(req: NextRequest) {
 
     // Destructure identifiers and strip fields that shouldn't be blindly overwritten
     const { id, agentId, createdAt, userEmail, ...updateData } = body;
+    const email = user.primaryEmailAddress?.emailAddress;
+
+    if (!email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!id && !agentId) {
       return NextResponse.json(
@@ -152,11 +185,15 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Update record in database using Drizzle
+    const ownerFilter = eq(AgentConfig.userEmail, email);
+    const idFilter = id
+      ? eq(AgentConfig.id, id)
+      : eq(AgentConfig.agentId, agentId);
+
     const updatedRecord = await db
       .update(AgentConfig)
       .set(updateData)
-      .where(id ? eq(AgentConfig.id, id) : eq(AgentConfig.agentId, agentId))
+      .where(and(idFilter, ownerFilter))
       .returning();
 
     if (!updatedRecord.length) {

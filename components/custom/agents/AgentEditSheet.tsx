@@ -29,9 +29,11 @@ import axios from "axios";
 import { toast } from "@/components/ui/toast";
 
 type Props = {
-  children: React.ReactElement;
+  children?: React.ReactElement;
   agentConfig: CreatedAgentType | null;
   onSave?: (updatedAgent: CreatedAgentType) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const AVAILABLE_TOOLS = [
@@ -47,13 +49,24 @@ export default function AgentEditSheet({
   children,
   agentConfig,
   onSave,
+  open: controlledOpen,
+  onOpenChange,
 }: Props) {
   const [draftAgent, setDraftAgent] = useState<CreatedAgentType | null>(
     agentConfig,
   );
   const [newSkill, setNewSkill] = useState("");
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  const setOpen = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setUncontrolledOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
 
   useEffect(() => {
     setDraftAgent(agentConfig);
@@ -157,7 +170,7 @@ export default function AgentEditSheet({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger>{children}</SheetTrigger>
+      {children ? <SheetTrigger>{children}</SheetTrigger> : null}
 
       <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col h-screen max-h-screen bg-white">
         <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
@@ -183,13 +196,19 @@ export default function AgentEditSheet({
             <div className="p-5 space-y-5 pb-10">
               {/* Agent Image */}
               <section className="flex items-center gap-4 border rounded-2xl bg-slate-50/50 p-4">
-                <img
-                  src={draftAgent?.agentImage ?? ""}
-                  alt={draftAgent?.name ?? "Agent"}
-                  width={72}
-                  height={72}
-                  className="bg-slate-100 p-2 border rounded-2xl size-18 shrink-0 object-cover"
-                />
+                {draftAgent?.agentImage ? (
+                  <img
+                    src={draftAgent.agentImage}
+                    alt={draftAgent?.name ?? "Agent"}
+                    width={72}
+                    height={72}
+                    className="bg-slate-100 p-2 border rounded-2xl size-18 shrink-0 object-cover"
+                  />
+                ) : (
+                  <div className="bg-purple-100 text-purple-700 border rounded-2xl size-18 shrink-0 flex items-center justify-center font-semibold text-lg">
+                    {draftAgent?.name?.charAt(0) || "A"}
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <p className="font-semibold text-sm">Agent Image</p>
                   <p className="text-xs text-muted-foreground">
