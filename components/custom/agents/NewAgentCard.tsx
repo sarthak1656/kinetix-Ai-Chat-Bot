@@ -12,7 +12,7 @@ import {
   Trash,
   Wrench,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -140,14 +140,14 @@ function NewAgentCard({ createdAgent, onAgentUpdated, onAgentDeleted }: Props) {
           </AgentEditSheet>
 
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-600 hover:text-slate-900"
-              >
-                <Ellipsis className="w-4 h-4" />
-              </Button>
+            <DropdownMenuTrigger
+              className={buttonVariants({
+                variant: "ghost",
+                size: "icon",
+                className: "h-8 w-8 text-slate-600 hover:text-slate-900",
+              })}
+            >
+              <Ellipsis className="w-4 h-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>

@@ -36,14 +36,13 @@ type Props = {
   onOpenChange?: (open: boolean) => void;
 };
 
-const AVAILABLE_TOOLS = [
-  {
-    id: "google_calendar",
-    name: "google_calendar",
-    description: "Google Calendar integration",
-  },
-  { id: "notion", name: "notion", description: "Notion database integration" },
-];
+type AgentToolConnection = {
+  slug: string;
+  name?: string;
+  logo?: string;
+  connected: boolean;
+  connectedAccountId: string | null;
+};
 
 export default function AgentEditSheet({
   children,
@@ -57,6 +56,15 @@ export default function AgentEditSheet({
   );
   const [newSkill, setNewSkill] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tools, setTools] = useState<AgentToolConnection[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [toolsError, setToolsError] = useState<string | null>(null);
+  const [connectingToolSlug, setConnectingToolSlug] = useState<string | null>(
+    null,
+  );
+  const [disconnectingToolSlug, setDisconnectingToolSlug] = useState<
+    string | null
+  >(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
@@ -71,6 +79,53 @@ export default function AgentEditSheet({
   useEffect(() => {
     setDraftAgent(agentConfig);
   }, [agentConfig]);
+
+  useEffect(() => {
+    if (!open || !agentConfig?.agentId) return;
+
+    const controller = new AbortController();
+    const loadTools = async () => {
+      try {
+        const response = await axios.get<AgentToolConnection[]>("/api/tools", {
+          params: { agentId: agentConfig.agentId },
+          signal: controller.signal,
+        });
+        setTools(response.data);
+        setToolsError(null);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
+        console.error("Error loading connected tools:", error);
+        setToolsError(
+          axios.isAxiosError<{ error?: string }>(error)
+            ? error.response?.data?.error || "Failed to load connected tools."
+            : "Failed to load connected tools.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setToolsLoading(false);
+        }
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadTools();
+      }
+    };
+
+    setToolsLoading(true);
+    setToolsError(null);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    void loadTools();
+
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [open, agentConfig?.agentId]);
 
   const updateDraft = (key: string, value: any) => {
     setDraftAgent((prev: any) => ({
@@ -114,20 +169,6 @@ export default function AgentEditSheet({
     );
   };
 
-  const toggleTool = (toolName: string) => {
-    const currentTools: string[] = Array.isArray(draftAgent?.tools)
-      ? draftAgent.tools
-      : [];
-    if (currentTools.includes(toolName)) {
-      updateDraft(
-        "tools",
-        currentTools.filter((t) => t !== toolName),
-      );
-    } else {
-      updateDraft("tools", [...currentTools, toolName]);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draftAgent) return;
@@ -164,9 +205,86 @@ export default function AgentEditSheet({
     }
   };
 
-  const connectedToolsCount = Array.isArray(draftAgent?.tools)
-    ? draftAgent.tools.length
-    : 0;
+  const connectedToolsCount = tools.filter((tool) => tool.connected).length;
+
+  const connectTool = async (toolSlug: string) => {
+    if (!agentConfig?.agentId) return;
+
+    setConnectingToolSlug(toolSlug);
+    try {
+      const response = await axios.post<{ redirectUrl: string }>(
+        "/api/tools/connect",
+        { agentId: agentConfig.agentId, toolSlug },
+      );
+
+      if (!response.data.redirectUrl) {
+        throw new Error(
+          "The connection service did not return a redirect URL.",
+        );
+      }
+
+      window.location.assign(response.data.redirectUrl);
+    } catch (error) {
+      console.error("Error connecting tool:", error);
+      toast.add({
+        type: "error",
+        title: "Connection failed",
+        description:
+          axios.isAxiosError<{ error?: string }>(error)
+            ? error.response?.data?.error || "Failed to connect this tool."
+            : error instanceof Error
+              ? error.message
+              : "Failed to connect this tool.",
+      });
+      setConnectingToolSlug(null);
+    }
+  };
+
+  const disconnectTool = async (tool: AgentToolConnection) => {
+    if (!agentConfig?.agentId) return;
+
+    setDisconnectingToolSlug(tool.slug);
+    toast.add({
+      type: "info",
+      title: "Disconnecting tool",
+      description: `Disconnecting ${tool.name || tool.slug}...`,
+    });
+
+    try {
+      await axios.delete("/api/tools/connect", {
+        data: { agentId: agentConfig.agentId, toolSlug: tool.slug },
+      });
+
+      setTools((currentTools) =>
+        currentTools.map((currentTool) =>
+          currentTool.slug === tool.slug
+            ? {
+                ...currentTool,
+                connected: false,
+                connectedAccountId: null,
+              }
+            : currentTool,
+        ),
+      );
+      toast.add({
+        type: "success",
+        title: "Tool disconnected",
+        description: `${tool.name || tool.slug} has been disconnected.`,
+      });
+    } catch (error) {
+      console.error("Error disconnecting tool:", error);
+      toast.add({
+        type: "error",
+        title: "Disconnection failed",
+        description:
+          axios.isAxiosError<{ error?: string }>(error)
+            ? error.response?.data?.error || "Failed to disconnect this tool."
+            : "Failed to disconnect this tool.",
+      });
+    } finally {
+      setDisconnectingToolSlug(null);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -401,67 +519,119 @@ export default function AgentEditSheet({
                     Connected Tools
                   </h4>
                   <p className="text-[11px] text-muted-foreground">
-                    {connectedToolsCount} of {AVAILABLE_TOOLS.length} connected
+                    {toolsLoading
+                      ? "Loading connection status..."
+                      : `${connectedToolsCount} of ${tools.length} connected`}
                   </p>
                 </div>
 
                 <div className="space-y-2.5">
-                  {AVAILABLE_TOOLS.map((tool) => {
-                    const isConnected = Array.isArray(draftAgent?.tools)
-                      ? draftAgent.tools.includes(tool.name)
-                      : false;
-
-                    return (
+                  {toolsLoading ? (
+                    <div
+                      className="rounded-2xl border bg-slate-50 p-4 text-xs text-muted-foreground"
+                      role="status"
+                    >
+                      Loading connected tools...
+                    </div>
+                  ) : toolsError ? (
+                    <div
+                      className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700"
+                      role="alert"
+                    >
+                      {toolsError}
+                    </div>
+                  ) : tools.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed bg-slate-50 p-4 text-xs text-muted-foreground">
+                      No tools are configured for this agent.
+                    </div>
+                  ) : (
+                    tools.map((tool) => (
                       <div
-                        key={tool.id}
+                        key={tool.slug}
                         className="flex items-center justify-between p-3 border rounded-2xl bg-white shadow-2xs"
                       >
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2.5 rounded-xl border ${
-                              isConnected
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                                : "bg-slate-100 border-slate-200 text-slate-400"
-                            }`}
-                          >
-                            {isConnected ? (
-                              <Link2 className="w-4 h-4" />
-                            ) : (
-                              <Unlink className="w-4 h-4" />
-                            )}
-                          </div>
+                          {tool.logo ? (
+                            <img
+                              src={tool.logo}
+                              alt=""
+                              className="size-10 rounded-xl border bg-white object-contain p-2"
+                            />
+                          ) : (
+                            <div
+                              className={`p-2.5 rounded-xl border ${
+                                tool.connected
+                                  ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                                  : "bg-red-50 border-red-200 text-red-600"
+                              }`}
+                            >
+                              {tool.connected ? (
+                                <Link2 className="w-4 h-4" />
+                              ) : (
+                                <Unlink className="w-4 h-4" />
+                              )}
+                            </div>
+                          )}
                           <div>
                             <p className="font-semibold text-xs text-slate-800">
-                              {tool.name}
+                              {tool.name || tool.slug}
                             </p>
                             <p
                               className={`text-[11px] font-medium ${
-                                isConnected
+                                tool.connected
                                   ? "text-emerald-600"
-                                  : "text-slate-400"
+                                  : "text-red-600"
                               }`}
                             >
-                              {isConnected ? "Connected" : "Not connected"}
+                              {tool.connected ? "Connected" : "Not connected"}
                             </p>
                           </div>
                         </div>
-
                         <Button
                           type="button"
-                          variant={isConnected ? "outline" : "default"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => toggleTool(tool.name)}
-                          className={`h-8 text-xs font-semibold px-4 ${
-                            !isConnected
-                              ? "bg-slate-900 text-white hover:bg-slate-800"
-                              : ""
+                          disabled={
+                            connectingToolSlug !== null ||
+                            disconnectingToolSlug !== null
+                          }
+                          aria-label={
+                            tool.connected
+                              ? `Disconnect ${tool.name || tool.slug}`
+                              : `Connect ${tool.name || tool.slug}`
+                          }
+                          aria-busy={
+                            connectingToolSlug === tool.slug ||
+                            disconnectingToolSlug === tool.slug
+                          }
+                          onClick={() =>
+                            void (tool.connected
+                              ? disconnectTool(tool)
+                              : connectTool(tool.slug))
+                          }
+                          className={`h-8 shrink-0 px-3 text-[11px] font-semibold hover:opacity-80 ${
+                            tool.connected
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100"
+                              : "border-red-200 bg-red-50 text-red-700 opacity-100"
                           }`}
                         >
-                          {isConnected ? "Disconnect" : "Connect"}
+                          {connectingToolSlug === tool.slug ||
+                          disconnectingToolSlug === tool.slug ? (
+                            <>
+                              <Loader2 className="mr-1 size-3 animate-spin" />
+                              {connectingToolSlug === tool.slug
+                                ? "Connecting"
+                                : "Disconnecting"}
+                            </>
+                          ) : tool.connected ? (
+                            "Disconnect"
+                          ) : (
+                            "Connect"
+                          )}
                         </Button>
                       </div>
-                    );
-                  })}
+                    ))
+                  )}
                 </div>
               </div>
 

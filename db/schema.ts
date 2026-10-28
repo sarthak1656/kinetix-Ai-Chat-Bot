@@ -59,25 +59,24 @@ export const tools = pgTable("tools", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const AgentConfig = pgTable("agentConfig",{
+export const AgentConfig = pgTable("agentConfig", {
   id: serial("id").primaryKey(),
-  userEmail:text("email").references(() => users.email),
-  agentId:varchar("agentId", { length: 100 }).notNull().unique(),
-  name:varchar("name", { length: 100 }),
-  agentImage:varchar("agentImage"),
-  description:text("description"),
-  instructions:text("instructions"),
-  objective:text("objective"),
-  model:varchar("model", { length: 100 }),
-  tools:jsonb("tools"),
-  skills:jsonb("skills"),
-  schedule:jsonb("schedule"),
-  outputFormat:text("outputFormat"),
-  status:varchar("status").default("active"),
+  userEmail: text("email").references(() => users.email),
+  agentId: varchar("agentId", { length: 100 }).notNull().unique(),
+  name: varchar("name", { length: 100 }),
+  agentImage: varchar("agentImage"),
+  description: text("description"),
+  instructions: text("instructions"),
+  objective: text("objective"),
+  model: varchar("model", { length: 100 }),
+  tools: jsonb("tools"),
+  skills: jsonb("skills"),
+  schedule: jsonb("schedule"),
+  outputFormat: text("outputFormat"),
+  status: varchar("status").default("active"),
+  composioSessionId: varchar("composioSessionId"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-
-})
-
+});
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

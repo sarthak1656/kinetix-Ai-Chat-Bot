@@ -10,7 +10,8 @@ import {
   Play,
   Trash,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,7 +48,7 @@ function formatSchedule(schedule?: AgentSchedule | null) {
   return "On demand";
 }
 
-function MyAgent() {
+function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
   const [agents, setAgents] = useState<CreatedAgentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAgent, setEditingAgent] = useState<CreatedAgentType | null>(
@@ -69,6 +70,17 @@ function MyAgent() {
     fetchAgents();
   }, []);
 
+  useEffect(() => {
+    if (!connectAgentId) return;
+
+    const agentToEdit = agents.find(
+      (agent) => agent.agentId === connectAgentId,
+    );
+    if (agentToEdit) {
+      setEditingAgent(agentToEdit);
+    }
+  }, [agents, connectAgentId]);
+
   return (
     <div className="mt-8">
       <div className="flex items-end justify-between gap-4">
@@ -80,18 +92,47 @@ function MyAgent() {
             Run, manage, and update all the agents you've created.
           </p>
         </div>
-        <p className="text-sm text-muted-foreground shrink-0">
-          {agents.length} {agents.length === 1 ? "agent" : "agents"}
-        </p>
+        {loading ? (
+          <Skeleton
+            className="h-5 w-16 shrink-0"
+            aria-hidden="true"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground shrink-0">
+            {agents.length} {agents.length === 1 ? "agent" : "agents"}
+          </p>
+        )}
       </div>
 
       {loading ? (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div
+          className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
+          role="status"
+          aria-label="Loading agents"
+        >
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-56 rounded-2xl border bg-white animate-pulse"
-            />
+              className="flex h-56 flex-col rounded-2xl border bg-white p-5 shadow-sm"
+              aria-hidden="true"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Skeleton className="size-11 shrink-0 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="size-8 rounded-md" />
+              </div>
+              <div className="mt-5 space-y-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+              <Skeleton className="mt-5 h-4 w-32" />
+              <Skeleton className="mt-auto h-10 w-full rounded-xl" />
+            </div>
           ))}
         </div>
       ) : agents.length === 0 ? (
@@ -134,14 +175,14 @@ function MyAgent() {
                 </div>
 
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-slate-700"
-                    >
-                      <Ellipsis className="w-4 h-4" />
-                    </Button>
+                  <DropdownMenuTrigger
+                    className={buttonVariants({
+                      variant: "ghost",
+                      size: "icon",
+                      className: "h-8 w-8 text-slate-400 hover:text-slate-700",
+                    })}
+                  >
+                    <Ellipsis className="w-4 h-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
