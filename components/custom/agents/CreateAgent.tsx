@@ -151,7 +151,7 @@ export type CreatedAgentType = {
   outputFormat: string;
   status: string;
   createdAt: string;
-  composioSessionId?: string;
+  composioSessionId: string | null;
 };
 
 function CreateAgent() {

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -229,12 +228,11 @@ export default function AgentEditSheet({
       toast.add({
         type: "error",
         title: "Connection failed",
-        description:
-          axios.isAxiosError<{ error?: string }>(error)
-            ? error.response?.data?.error || "Failed to connect this tool."
-            : error instanceof Error
-              ? error.message
-              : "Failed to connect this tool.",
+        description: axios.isAxiosError<{ error?: string }>(error)
+          ? error.response?.data?.error || "Failed to connect this tool."
+          : error instanceof Error
+            ? error.message
+            : "Failed to connect this tool.",
       });
       setConnectingToolSlug(null);
     }
@@ -276,10 +274,9 @@ export default function AgentEditSheet({
       toast.add({
         type: "error",
         title: "Disconnection failed",
-        description:
-          axios.isAxiosError<{ error?: string }>(error)
-            ? error.response?.data?.error || "Failed to disconnect this tool."
-            : "Failed to disconnect this tool.",
+        description: axios.isAxiosError<{ error?: string }>(error)
+          ? error.response?.data?.error || "Failed to disconnect this tool."
+          : "Failed to disconnect this tool.",
       });
     } finally {
       setDisconnectingToolSlug(null);
@@ -653,16 +650,15 @@ export default function AgentEditSheet({
           {/* Footer Actions (Fixed) */}
           <SheetFooter className="p-4 border-t bg-white shrink-0 z-10">
             <div className="flex justify-end items-center gap-2.5 w-full">
-              <SheetClose>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-              </SheetClose>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
               <Button
                 type="submit"
                 size="sm"

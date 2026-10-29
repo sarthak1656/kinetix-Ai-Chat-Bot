@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   CalendarDays,
   Ellipsis,
+  MessageCircle,
   Pause,
   Pencil,
   Play,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import AgentChatDrawer from "./AgentChatDrawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +56,10 @@ function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
   const [editingAgent, setEditingAgent] = useState<CreatedAgentType | null>(
     null,
   );
+  const [chattingAgent, setChattingAgent] = useState<CreatedAgentType | null>(
+    null,
+  );
+  const handledConnectAgentId = useRef<string | null>(null);
 
   const fetchAgents = async () => {
     try {
@@ -71,13 +77,21 @@ function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
   }, []);
 
   useEffect(() => {
-    if (!connectAgentId) return;
+    if (!connectAgentId || handledConnectAgentId.current === connectAgentId) {
+      return;
+    }
 
     const agentToEdit = agents.find(
       (agent) => agent.agentId === connectAgentId,
     );
     if (agentToEdit) {
+      handledConnectAgentId.current = connectAgentId;
       setEditingAgent(agentToEdit);
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete("connectAgentId");
+      url.searchParams.set("tab", "my-agent");
+      window.history.replaceState(window.history.state, "", url);
     }
   }, [agents, connectAgentId]);
 
@@ -93,10 +107,7 @@ function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
           </p>
         </div>
         {loading ? (
-          <Skeleton
-            className="h-5 w-16 shrink-0"
-            aria-hidden="true"
-          />
+          <Skeleton className="h-5 w-16 shrink-0" aria-hidden="true" />
         ) : (
           <p className="text-sm text-muted-foreground shrink-0">
             {agents.length} {agents.length === 1 ? "agent" : "agents"}
@@ -223,10 +234,22 @@ function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
                 <span>{formatSchedule(agent.schedule)}</span>
               </div>
 
-              <Button className="mt-5 w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium">
-                <Play className="size-4 fill-current" />
-                Run agent
-              </Button>
+              <div className="flex items-center gap-2.5 w-full ">
+                <Button
+                  variant={"outline"}
+                  className="mt-5 flex-1 rounded-xl hover:bg-purple-50  font-medium"
+                >
+                  <Play className="size-4 fill-current" />
+                  Run agent
+                </Button>
+                <Button
+                  onClick={() => setChattingAgent(agent)}
+                  className="mt-5 flex-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium"
+                >
+                  <MessageCircle className="size-4 fill-current" />
+                  Chat With agent
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -247,6 +270,15 @@ function MyAgent({ connectAgentId }: { connectAgentId?: string }) {
           setEditingAgent(updated);
         }}
       />
+      {chattingAgent && (
+        <AgentChatDrawer
+          agent={chattingAgent}
+          open={!!chattingAgent}
+          onOpenChange={(open) => {
+            if (!open) setChattingAgent(null);
+          }}
+        />
+      )}
     </div>
   );
 }
