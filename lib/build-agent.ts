@@ -1,5 +1,6 @@
 import { AgentConfig } from "@/db";
 import { getOrCreateAgentSession } from "./get-agent-comoposio-session";
+import { browserbaseResearchTool, type LocalTool } from "./browserbase-tool";
 import {
   GoogleGenAI,
   FunctionCallingConfigMode,
@@ -85,9 +86,23 @@ export async function buildAgent(
 
   // GoogleProvider returns an array of FunctionDeclarations (meta-tools such as
   // COMPOSIO_SEARCH_TOOLS, COMPOSIO_MULTI_EXECUTE_TOOL, COMPOSIO_MANAGE_CONNECTIONS).
-  const functionDeclarations = sanitizeDeclarations(
+  const composioDeclarations = sanitizeDeclarations(
     (await session.tools()) as unknown as any[],
   );
+
+  // Local (non-Composio) tools, executed directly in our own code.
+  const enabledSlugs = Array.isArray(agentConfig.tools)
+    ? (agentConfig.tools as string[])
+    : [];
+  const localTools: LocalTool[] = enabledSlugs.includes("browserbase")
+    ? [browserbaseResearchTool]
+    : [];
+  const localToolMap = new Map(localTools.map((t) => [t.declaration.name!, t]));
+
+  const functionDeclarations = [
+    ...composioDeclarations,
+    ...localTools.map((t) => t.declaration),
+  ];
 
   const instructions = `
 Agent Name: ${agentConfig.name}
@@ -105,6 +120,7 @@ TOOL USAGE RULES (mandatory):
   2. If the app is not connected, call COMPOSIO_MANAGE_CONNECTIONS and give the user the returned auth link.
   3. Call COMPOSIO_MULTI_EXECUTE_TOOL with the discovered tool slug(s) and arguments (reuse the session_id).
   4. Summarize or act on the real tool results.
+- For live web browsing/research (current prices, availability, verifying website info), call browser_research.
 - Do not claim an action succeeded unless the tool result confirms it.
 - Ask for confirmation before destructive or high-risk actions.
 `.trim();
@@ -146,7 +162,20 @@ TOOL USAGE RULES (mandatory):
           calls.map(async (call) => {
             const name = call.name ?? "";
             console.log("🔧", name, call.args);
+
             try {
+              const local = localToolMap.get(name);
+              if (local) {
+                const output = await local.execute(call.args ?? {});
+                return {
+                  functionResponse: {
+                    id: call.id,
+                    name,
+                    response: { result: output },
+                  },
+                };
+              }
+
               const result = await session.execute(name, call.args ?? {});
               return {
                 functionResponse: {

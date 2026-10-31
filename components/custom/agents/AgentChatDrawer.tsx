@@ -305,17 +305,35 @@ function AgentMessage({
   variant?: "outline" | "destructive";
 }) {
   return (
-    <div className="flex items-end gap-2">
+    <div className="flex min-w-0 items-end gap-2">
       <img
         src={agent.agentImage || "/placeholder-agent.png"}
         alt={agent.name || "Agent"}
-        className="size-8 rounded-full border bg-background object-cover p-1"
+        className="size-8 shrink-0 rounded-full border bg-background object-cover p-1"
       />
 
-      <Bubble align="start" variant={variant}>
-        <BubbleContent>
+      {/* min-w-0 lets the bubble shrink inside the flex row so wide tables scroll instead of being clipped */}
+      <Bubble align="start" variant={variant} className="min-w-0 max-w-[85%]">
+        <BubbleContent className="min-w-0">
           <div className="prose prose-sm dark:prose-invert wrap-break-word max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ node, ...props }) => (
+                  <div className="my-2 w-full overflow-x-auto">
+                    <table {...props} className="w-max min-w-full" />
+                  </div>
+                ),
+                th: ({ node, ...props }) => (
+                  <th {...props} className="whitespace-nowrap px-3 py-2" />
+                ),
+                td: ({ node, ...props }) => (
+                  <td {...props} className="min-w-28 px-3 py-2 align-top" />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
           </div>
         </BubbleContent>
       </Bubble>
